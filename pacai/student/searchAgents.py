@@ -130,6 +130,7 @@ def cornersHeuristic(state, problem):
     # walls = problem.walls  # These are the walls of the maze, as a Grid.
 
     # *** Your Code Here ***
+    
     if problem.isGoal(state):
         return 0
 
