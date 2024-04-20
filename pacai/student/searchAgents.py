@@ -8,11 +8,12 @@ Good luck and happy searching!
 import logging
 
 from pacai.core.actions import Actions
-from pacai.core.search import heuristic
 from pacai.core.search.position import PositionSearchProblem
 from pacai.core.search.problem import SearchProblem
 from pacai.agents.base import BaseAgent
 from pacai.agents.search.base import SearchAgent
+from pacai.core.directions import Directions
+from pacai.core.distance import manhattan
 
 class CornersProblem(SearchProblem):
     """
@@ -64,7 +65,7 @@ class CornersProblem(SearchProblem):
                 logging.warning('Warning: no food in corner ' + str(corner))
 
         # *** Your Code Here ***
-        raise NotImplementedError()
+        self.unvisited = self.corners
 
     def actionsCost(self, actions):
         """
@@ -85,6 +86,35 @@ class CornersProblem(SearchProblem):
 
         return len(actions)
 
+    def isGoal(self, state):
+        if (len(state[1]) == 0):
+            return True
+        else:
+            return False
+    
+    def startingState(self):
+        startState = (self.startingPosition, self.unvisited)
+        return startState
+    
+    def successorStates(self, state):
+        successors = []
+        self._numExpanded += 1
+        unvisited = state[1]
+        for direction in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
+            x, y = state[0]
+            dx, dy = Actions.directionToVector(direction)
+            nextx, nexty = int(x + dx), int(y + dy)
+            if not self.walls[nextx][nexty]:
+                unvisit = list(unvisited)
+                newPosition = (nextx, nexty)
+                if newPosition in self.corners:
+                    if newPosition in unvisit:
+                        unvisit.remove(newPosition)
+                successor = ((newPosition, unvisit), direction, 1)
+                successors.append(successor)
+
+        return successors
+
 def cornersHeuristic(state, problem):
     """
     A heuristic for the CornersProblem that you defined.
@@ -100,7 +130,22 @@ def cornersHeuristic(state, problem):
     # walls = problem.walls  # These are the walls of the maze, as a Grid.
 
     # *** Your Code Here ***
-    return heuristic.null(state, problem)  # Default to trivial solution
+    if problem.isGoal(state):
+        return 0
+
+    unvisited = list(state[1])
+    curr = state[0]
+    heur = 0
+
+    if len(unvisited) > 0:
+        distances = []
+        for corner in unvisited:
+            distances.append(manhattan(curr, corner))
+        
+        heur = max(distances)
+
+    return heur
+            
 
 def foodHeuristic(state, problem):
     """
@@ -130,11 +175,21 @@ def foodHeuristic(state, problem):
     ```
     Subsequent calls to this heuristic can access problem.heuristicInfo['wallCount'].
     """
-
+    # from pacai.core.distance import euclidean
+    from pacai.core.distance import maze
     position, foodGrid = state
 
-    # *** Your Code Here ***
-    return heuristic.null(state, problem)  # Default to the null heuristic.
+    if not foodGrid.asList():
+        return 0
+    
+    foods = foodGrid.asList()
+    distance = 0
+    for food in foods:
+        temp = maze(position, food, problem.startingGameState)
+        if temp > distance:
+            distance = temp
+
+    return distance
 
 class ClosestDotSearchAgent(SearchAgent):
     """
@@ -176,7 +231,10 @@ class ClosestDotSearchAgent(SearchAgent):
         # problem = AnyFoodSearchProblem(gameState)
 
         # *** Your Code Here ***
-        raise NotImplementedError()
+        from pacai.student.search import breadthFirstSearch
+
+        problem = AnyFoodSearchProblem(gameState)
+        return breadthFirstSearch(problem)
 
 class AnyFoodSearchProblem(PositionSearchProblem):
     """
@@ -204,6 +262,10 @@ class AnyFoodSearchProblem(PositionSearchProblem):
 
         # Store the food for later reference.
         self.food = gameState.getFood()
+    
+    def isGoal(self, state):
+        x, y = state
+        return self.food[x][y]
 
 class ApproximateSearchAgent(BaseAgent):
     """
